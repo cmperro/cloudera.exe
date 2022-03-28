@@ -178,6 +178,7 @@
           name: "{{ __dw_config.name | default(run__dw_default_dbc) }}"
           load_demo_data: "{{ __dw_config.load_demo_data | default(False) | bool }}"
           virtual_warehouses: "{{ __dw_config.virtual_warehouses | default([]) }}"
+          use_default_dbc: "{{ __dw_config.use_default_dbc | default(True) | bool }}"
       loop: "{{ run__dw_definitions }}"
       loop_control:
         loop_var: __dw_config
@@ -190,6 +191,7 @@
         config:
           dbc_name: "{{ __dw_config.0.name }}"
           name: "{{ __dw_config.1.name | default([run__namespace, run__dw_vw_suffix ,__dw_dbc_index] | join('-')) }}"
+          use_default_dbc: "{{ __dw_config.0.use_default_dbc }}"
           type: "{{ __dw_config.1.type | default(run__dw_default_vw_type) }}"
           template: "{{ __dw_config.1.template | default(run__dw_default_template_type) }}"
           tags: "{{ __dw_config.1.tags | default({}) | combine(run__dw_tags) }}"

@@ -66,36 +66,36 @@
       retries: 30
       delay: 10
   
-  rescue:
-    - debug:
-        var: ansible_failed_result
+  #rescue:
+    #- debug:
+        #var: ansible_failed_result
 
-    - name: Execute CDP Data Warehouse virtual warehouse teardown (compactor)
-      cloudera.cloud.dw_virtual_warehouse:
-        cluster_id: "{{ __dw_cluster_id }}"
-        id: "{{ __dw_vw_compactor_item.id }}"
-        state: absent
-        wait: yes
+    #- name: Execute CDP Data Warehouse virtual warehouse teardown (compactor)
+    #  cloudera.cloud.dw_virtual_warehouse:
+    #    cluster_id: "{{ __dw_cluster_id }}"
+    #    id: "{{ __dw_vw_compactor_item.id }}"
+    #    state: absent
+    #    wait: yes
       #loop: "{{ __dw_vw_teardown_info.results | map(attribute='__vw_id') | list }}"
-      loop: "{{ ansible_failed_result.results | map(attribute='__vw_id') | list }}"
-      loop_control:
-        loop_var: __dw_vw_compactor_item
-        label: "{{ __dw_vw_compactor_item.name }}"
-      register: __dw_vw_compactor_info
-      async: 3600 # 1 hour timeout
-      poll: 0
+    #  loop: "{{ ansible_failed_result.results | map(attribute='__vw_id') | list }}"
+    #  loop_control:
+    #    loop_var: __dw_vw_compactor_item
+    #    label: "{{ __dw_vw_compactor_item.name }}"
+    #  register: __dw_vw_compactor_info
+    #  async: 3600 # 1 hour timeout
+    #  poll: 0
 
-    - name: Wait for CDP Data Warehouse virtual warehouses (compactor) to decommission
-      ansible.builtin.async_status:
-        jid: "{{ __dw_vw_compactor_teardown_item.ansible_job_id }}"
-      loop_control:
-        loop_var: __dw_vw_compactor_teardown_item
-        label: "{{ __dw_vw_compactor_teardown_item.__dw_vw_compactor_item.name }}"
-      loop: "{{ __dw_vw_compactor_info.results }}"
-      register: __dw_vw_compactor_teardowns_async
-      until: __dw_vw_compactor_teardowns_async.finished
-      retries: 30
-      delay: 10
+    #- name: Wait for CDP Data Warehouse virtual warehouses (compactor) to decommission
+    #  ansible.builtin.async_status:
+    #    jid: "{{ __dw_vw_compactor_teardown_item.ansible_job_id }}"
+    #  loop_control:
+    #    loop_var: __dw_vw_compactor_teardown_item
+    #    label: "{{ __dw_vw_compactor_teardown_item.__dw_vw_compactor_item.name }}"
+    #  loop: "{{ __dw_vw_compactor_info.results }}"
+    #  register: __dw_vw_compactor_teardowns_async
+    #  until: __dw_vw_compactor_teardowns_async.finished
+    #  retries: 30
+    #  delay: 10
 
     - name: Execute CDP Data Warehouse database catalog teardown
       cloudera.cloud.dw_database_catalog:
@@ -232,7 +232,7 @@
   delay: 30
 
 - name: Wait for CDP Data Warehouse deployments to decommission
-  when: __dw_dbc_teardown_info is defined and __dw_dbc_teardown_info.results is defined and not __dw_dbc_teardown_item.skipped
+  when: __dw_dbc_teardown_info is defined and __dw_dbc_teardown_info.results is defined # and not __dw_dbc_teardown_item.skipped
   ansible.builtin.async_status:
     jid: "{{ __dw_dbc_teardown_item.ansible_job_id }}"
   loop_control:
