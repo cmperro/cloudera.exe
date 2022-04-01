@@ -32,13 +32,13 @@
   poll: 0
   register: __opdb_teardowns_info
 
-- name: Execute CDP Data Warehouse services teardown
+- name: Execute CDP Data Warehouse virtual warehouse teardown
   when:
     - run__include_dw
     - not run__force_teardown | bool and not run__dw_force_delete | bool
     - run__env_info.environments | length > 0
   block:
-    - name: Execute CDP Data Warehouse virtual warehouse teardown
+    - name: Execute CDP Data Warehouse virtual warehouses (noncompactor VWs) teardown
       cloudera.cloud.dw_virtual_warehouse:
         cluster_id: "{{ __dw_cluster_id }}"
         id: "{{ __vw_id.id }}"
@@ -49,11 +49,10 @@
         loop_var: __vw_id
         label: "{{ __vw_id.name }}"
       register: __dw_vw_teardown_info
-      #ignore_errors: yes
       async: 3600 # 1 hour timeout
       poll: 0
 
-    - name: Wait for CDP Data Warehouse virtual warehouses to decommission
+    - name: Wait for CDP Data Warehouse virtual warehouses (noncompactor VWs) to decommission
       ansible.builtin.async_status:
         jid: "{{ __dw_vw_teardown_item.ansible_job_id }}"
       loop_control:
@@ -62,54 +61,55 @@
       loop: "{{ __dw_vw_teardown_info.results | default([]) }}"
       register: __dw_vw_teardowns_async
       until: __dw_vw_teardowns_async.finished
-      #ignore_errors: yes
       retries: 30
       delay: 10
   
-  #rescue:
-    #- debug:
-        #var: ansible_failed_result
-
-    #- name: Execute CDP Data Warehouse virtual warehouse teardown (compactor)
-    #  cloudera.cloud.dw_virtual_warehouse:
-    #    cluster_id: "{{ __dw_cluster_id }}"
-    #    id: "{{ __dw_vw_compactor_item.id }}"
-    #    state: absent
-    #    wait: yes
-      #loop: "{{ __dw_vw_teardown_info.results | map(attribute='__vw_id') | list }}"
-    #  loop: "{{ ansible_failed_result.results | map(attribute='__vw_id') | list }}"
-    #  loop_control:
-    #    loop_var: __dw_vw_compactor_item
-    #    label: "{{ __dw_vw_compactor_item.name }}"
-    #  register: __dw_vw_compactor_info
-    #  async: 3600 # 1 hour timeout
-    #  poll: 0
-
-    #- name: Wait for CDP Data Warehouse virtual warehouses (compactor) to decommission
-    #  ansible.builtin.async_status:
-    #    jid: "{{ __dw_vw_compactor_teardown_item.ansible_job_id }}"
-    #  loop_control:
-    #    loop_var: __dw_vw_compactor_teardown_item
-    #    label: "{{ __dw_vw_compactor_teardown_item.__dw_vw_compactor_item.name }}"
-    #  loop: "{{ __dw_vw_compactor_info.results }}"
-    #  register: __dw_vw_compactor_teardowns_async
-    #  until: __dw_vw_compactor_teardowns_async.finished
-    #  retries: 30
-    #  delay: 10
-
-    - name: Execute CDP Data Warehouse database catalog teardown
-      cloudera.cloud.dw_database_catalog:
+  rescue:
+    - name: Execute CDP Data Warehouse virtual warehouse teardown (compactor VWs)
+      cloudera.cloud.dw_virtual_warehouse:
         cluster_id: "{{ __dw_cluster_id }}"
-        id: "{{ __dbc_id.id }}"
+        id: "{{ __dw_vw_compactor_item.__dw_vw_teardown_item.__vw_id.id }}"
         state: absent
         wait: yes
-      loop: "{{ __dw_dbc_list.database_catalogs }}"
+      loop: "{{ ansible_failed_result.results }}"
+      when: __dw_vw_compactor_item.failed | bool
       loop_control:
-        loop_var: __dbc_id
-        label: "{{ __dbc_id.name }}"
+        loop_var: __dw_vw_compactor_item
+        label: "{{ __dw_vw_compactor_item.__dw_vw_teardown_item.__vw_id.name }}"
+      register: __dw_vw_compactor_info
       async: 3600 # 1 hour timeout
       poll: 0
-      register: __dw_dbc_teardown_info
+
+    - name: Wait for CDP Data Warehouse virtual warehouses (compactor) to decommission
+      ansible.builtin.async_status:
+        jid: "{{ __dw_vw_compactor_teardown_item.ansible_job_id }}"
+      loop_control:
+        loop_var: __dw_vw_compactor_teardown_item
+        label: "{{ __dw_vw_compactor_teardown_item.__dw_vw_compactor_item.__dw_vw_teardown_item.__vw_id.name }}"
+      loop: "{{ __dw_vw_compactor_info.results }}"
+      when: __dw_vw_compactor_teardown_item.ansible_job_id is defined
+      register: __dw_vw_compactor_teardowns_async
+      until: __dw_vw_compactor_teardowns_async.finished
+      retries: 30
+      delay: 10
+
+- name: Execute CDP Data Warehouse database catalog teardown
+  when:
+    - run__include_dw
+    - not run__force_teardown | bool and not run__dw_force_delete | bool
+    - run__env_info.environments | length > 0
+  cloudera.cloud.dw_database_catalog:
+    cluster_id: "{{ __dw_cluster_id }}"
+    id: "{{ __dbc_id.id }}"
+    state: absent
+    wait: yes
+  loop: "{{ __dw_dbc_list.database_catalogs | default([]) }}"
+  loop_control:
+    loop_var: __dbc_id
+    label: "{{ __dbc_id.name }}"
+  async: 3600 # 1 hour timeout
+  poll: 0
+  register: __dw_dbc_teardown_info
 
 - name: Execute CDP Dataflow teardown
   when:
